@@ -17,6 +17,8 @@ main process interruption were designed.
 Developed using the Mbed IDE. Tested on an EA LPC4088 QuickStart Board. */
 
 #include "mbed.h"
+double interval = 1.0 ; //Time between LED state switches
+bool  flag = false;
 
 //Create DigitalOut objects to control LED1-LED4:
 DigitalOut my_led1(LED1); //Active Low
@@ -58,17 +60,17 @@ void decode_state(int state_id){
     my_led4 = (state_id & 0b0001);
     }
 
-void pushbutton_isr(void){ //Button Press ISR
-        int save_state = encode_state(my_led1, my_led2, my_led3, my_led4);
-        my_led1 = 1; my_led2 = 1; my_led3 = 0; my_led4 = 0; //Clear LEDs.
-        while(!Button){ //Run until button release.
-            my_led1 = 0; wait(0.25); my_led1 = 1;
-            my_led2 = 0; wait(0.25); my_led2 = 1;
-            my_led4 = 1; wait(0.25); my_led4 = 0;
-            my_led3 = 1; wait(0.25); my_led3 = 0;
-        } //Button released, turn off all LEDs for three seconds.
+void pushbutton_isr(void){
+    int save_state = encode_state(my_led1, my_led2, my_led3, my_led4);
+    if (flag == true){
         my_led1 = 1; my_led2 = 1; my_led3 = 0; my_led4 = 0; wait(3); //All OFF.
-        decode_state(save_state); //Load pre-ISR state
+        interval = 1.0;
+    }
+    else{
+        interval = 0.2;
+    }
+    flag = !flag; //Invert flag
+    decode_state(save_state); //Load pre-ISR state
 }
 
 
@@ -76,11 +78,12 @@ int main(){
     my_led1 = 1; my_led2 = 1; my_led3 = 0; my_led4 = 0; //All OFF.
     Button.mode(PullUp); //Setup a PullUp Resister
     Button.fall(&pushbutton_isr); //Falling edge = Button Press -> ISR
+    Button.rise(&pushbutton_isr); //Rising edge = Button Release -> ISR
     
     while(1) { //LED1-LED2-LED4-LED3 sequence.
-        my_led1 = 0; wait(1); my_led1 = 1;
-        my_led2 = 0; wait(1); my_led2 = 1;
-        my_led4 = 1; wait(1); my_led4 = 0;
-        my_led3 = 1; wait(1); my_led3 = 0;
+        my_led1 = 0; wait(interval); my_led1 = 1;
+        my_led2 = 0; wait(interval); my_led2 = 1;
+        my_led4 = 1; wait(interval); my_led4 = 0;
+        my_led3 = 1; wait(interval); my_led3 = 0;
     }
 }
