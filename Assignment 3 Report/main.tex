@@ -237,6 +237,8 @@ main process interruption were designed.
 Developed using the Mbed IDE. Tested on an EA LPC4088 QuickStart Board. */
 
 #include "mbed.h"
+double interval = 1.0 ; //Time between LED state switches
+bool  flag = false;
 
 //Create DigitalOut objects to control LED1-LED4:
 DigitalOut my_led1(LED1); //Active Low
@@ -278,17 +280,17 @@ void decode_state(int state_id){
     my_led4 = (state_id & 0b0001);
     }
 
-void pushbutton_isr(void){ //Button Press ISR
-        int save_state = encode_state(my_led1, my_led2, my_led3, my_led4);
-        my_led1 = 1; my_led2 = 1; my_led3 = 0; my_led4 = 0; //Clear LEDs.
-        while(!Button){ //Run until button release.
-            my_led1 = 0; wait(0.25); my_led1 = 1;
-            my_led2 = 0; wait(0.25); my_led2 = 1;
-            my_led4 = 1; wait(0.25); my_led4 = 0;
-            my_led3 = 1; wait(0.25); my_led3 = 0;
-        } //Button released, turn off all LEDs for three seconds.
+void pushbutton_isr(void){
+    int save_state = encode_state(my_led1, my_led2, my_led3, my_led4);
+    if (flag == true){
         my_led1 = 1; my_led2 = 1; my_led3 = 0; my_led4 = 0; wait(3); //All OFF.
-        decode_state(save_state); //Load pre-ISR state
+        interval = 1.0;
+    }
+    else{
+        interval = 0.2;
+    }
+    flag = !flag; //Invert flag
+    decode_state(save_state); //Load pre-ISR state
 }
 
 
@@ -296,20 +298,20 @@ int main(){
     my_led1 = 1; my_led2 = 1; my_led3 = 0; my_led4 = 0; //All OFF.
     Button.mode(PullUp); //Setup a PullUp Resister
     Button.fall(&pushbutton_isr); //Falling edge = Button Press -> ISR
+    Button.rise(&pushbutton_isr); //Rising edge = Button Release -> ISR
     
     while(1) { //LED1-LED2-LED4-LED3 sequence.
-        my_led1 = 0; wait(1); my_led1 = 1;
-        my_led2 = 0; wait(1); my_led2 = 1;
-        my_led4 = 1; wait(1); my_led4 = 0;
-        my_led3 = 1; wait(1); my_led3 = 0;
+        my_led1 = 0; wait(interval); my_led1 = 1;
+        my_led2 = 0; wait(interval); my_led2 = 1;
+        my_led4 = 1; wait(interval); my_led4 = 0;
+        my_led3 = 1; wait(interval); my_led3 = 0;
     }
 }
 \end{minted}
-\pagebreak
 
 This function turns the on-board LEDs on then off, with the exact same sequence as last time; \texttt{LED1 -> LED2 -> LED4 -> LED3}. The interval between each LED state, however, is one second. Upon a button press (signal fall), the LEDs would start the same sequence, but with an interval of 250ms between state transitions. When the user releases the button (signal rise), all the LEDs will be turned off for three seconds prior to resuming the principal routine.
 
-Although the button release was not explicitly defined as an interrupt, the fact that the button press ISR managed to run on a \texttt{while} loop until the button release signal is detected makes the creation of a second ISR redundant. The implementation of a second ISR would result in a nested ISR definition since the button press ISR can then only be broken with a different ISR, causing a stacked ISR call from both signals, running on top of each other. This would have been a far more complicated implementation than a simple \texttt{while} loop to be broken upon button release.
+The ISR simply switches global variables corresponding to the interval value that controls the speed at which the LED sequence runs. Both interrupt triggers (rise and fall) call the same ISR, though in a non-preemptive manner. On the first trigger - a button press - the speed ramps up (or the interval shortens) and the \texttt{flag} is set, once the second trigger is detected - a button release - the \texttt{flag} is found to be tripped and the LEDs turn off for three seconds before restoring the original speed and clearing the \texttt{flag}. Because of the non-preemptive nature of the ISR, the second trigger's routine, which lasts just over three seconds, cannot be interrupted by a subsequent signal fall trigger. The fact that this also ensures that the flag is cleared prior to executing another ISR is the icing on the cake, as it reassures that the intended behavior is maintained and not flipped upside down.
 
 \end{document}
 
