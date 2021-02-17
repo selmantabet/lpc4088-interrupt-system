@@ -17,6 +17,8 @@ main process interruption were designed.
 Developed using the Mbed IDE. Tested on an EA LPC4088 QuickStart Board. */
 
 #include "mbed.h"
+#include <assert.h>
+
 double interval = 1.0 ; //Time between LED state switches
 
 //Create DigitalOut objects to control LED1-LED4:
@@ -57,6 +59,8 @@ void decode_state(int state_id){
     my_led2 = (state_id & 0b0100) >> 2;
     my_led3 = (state_id & 0b0010) >> 1;
     my_led4 = (state_id & 0b0001);
+    assert(encode_state(my_led1, my_led2, my_led3, my_led4) == state_id);
+    //Ensure the integrity of the LED values
     }
 
 void pushbutton_isr_press(void){
