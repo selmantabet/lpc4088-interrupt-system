@@ -67,7 +67,7 @@ void pushbutton_isr(void){
 int main(){
     my_led1 = 1; my_led2 = 1; my_led3 = 0; my_led4 = 0; //All OFF.
     Button.mode(PullUp); //Setup a PullUp Resister
-    Button.fall(&pushbutton_isr); //Register an ISR on the fall edge
+    Button.fall(&pushbutton_isr); //Register an ISR on the falling edge
     
     while(1) { //LED4-LED1-LED2-LED3 sequence.
         my_led4 = 1; wait(0.75); my_led4 = 0;
